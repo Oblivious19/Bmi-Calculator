@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMI Predictor</title>
+    <style>
+        /* Existing styles remain unchanged */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #4a76a8;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #4a76a8;
+        }
+
+        button {
+            background-color: #4a76a8;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:hover {
+            background-color: #3a5a88;
+            transform: translateY(-2px);
+        }
+
+        #result {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .loading {
+            color: #4a76a8;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .image-box {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .image-box img {
+            max-width: 100px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BMI Prediction from Image</h1>
+        <form id="upload-form" action="/predict" method="POST" enctype="multipart/form-data">
+            <input type="file" id="image" name="image" accept="image/*" required>
+            <button type="submit">Predict BMI</button>
+        </form>
+
+        <div id="result"></div>
+        <div class="image-box" id="image-box"></div>
+    </div>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+            const resultDiv = document.getElementById('result');
+            const imageBox = document.getElementById('image-box');
+            resultDiv.innerHTML = '<p class="loading">Predicting, please wait...</p>';
+            imageBox.innerHTML = '';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p><strong>Predicted Height:</strong> ${data.predicted_height_cm} m</p>
+                        <p><strong>Predicted Weight:</strong> ${data.predicted_weight_kg} kg</p>
+                        <p><strong>Predicted BMI:</strong> ${data.predicted_bmi}</p>
+                    `;
+                    // Display the uploaded image
+                    imageBox.innerHTML = `<img src="${data.image_url}" alt="Uploaded Image">`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">An error occurred: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
