@@ -1,252 +1,146 @@
-from flask import Flask, request, render_template, jsonify, send_from_directory
 import os
-import numpy as np
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
 import logging
-import time
-
-app = Flask(__name__)
+from flask import Flask, request, jsonify, render_template
+import tensorflow as tf
+import numpy as np
+from PIL import Image
+import io
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Set paths
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMP_DIR = os.path.join(BASE_DIR, 'temp')
-UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
-MODEL_DIR = os.path.join(os.path.dirname(BASE_DIR), 'BMI_Output')
-MODEL_PATH = os.path.join(MODEL_DIR, 'custom_cnn_bmi_model_final.keras')
+# Configure TensorFlow to use CPU only
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+tf.config.set_visible_devices([], 'GPU')
 
-# Ensure required directories exist
-for directory in [TEMP_DIR, UPLOAD_DIR, MODEL_DIR]:
-    os.makedirs(directory, exist_ok=True)
+app = Flask(__name__)
 
-# Constants for image processing
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
-TARGET_SIZE = (224, 224)
+# Load the model
+try:
+    model_path = os.path.join(os.path.dirname(__file__), "custom_cnn_bmi_model_final.keras")
+    model = tf.keras.models.load_model(model_path)
+    logger.info(f"Model successfully loaded from: {model_path}")
+except Exception as e:
+    logger.error(f"Error loading model: {str(e)}")
+    model = None
 
-# Model loading with error handling
-def load_bmi_model():
+def preprocess_image(image_bytes):
     try:
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
-        
-        model = load_model(MODEL_PATH)
-        logger.info(f"Model successfully loaded from: {MODEL_PATH}")
-        return model
-    except Exception as e:
-        logger.error(f"Error loading model: {str(e)}")
-        return None
-
-# Initialize model
-model = load_bmi_model()
-
-# Function to check if model is ready
-def is_model_ready():
-    return model is not None
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def validate_image(file):
-    """Validate the uploaded image file."""
-    if not file:
-        raise ValueError("No file provided")
-    
-    if not allowed_file(file.filename):
-        raise ValueError(f"Invalid file type. Allowed types are: {', '.join(ALLOWED_EXTENSIONS)}")
-    
-    # Check file size
-    file.seek(0, os.SEEK_END)
-    size = file.tell()
-    file.seek(0)
-    
-    if size > MAX_IMAGE_SIZE:
-        raise ValueError(f"File size exceeds maximum limit of {MAX_IMAGE_SIZE/1024/1024}MB")
-
-def preprocess_image(image_path):
-    """Preprocess the input image for model prediction."""
-    try:
-        # Load and validate image
-        img = load_img(image_path)
+        # Convert bytes to image
+        image = Image.open(io.BytesIO(image_bytes))
         
         # Convert to RGB if necessary
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
         
         # Resize image
-        img = img.resize(TARGET_SIZE)
+        image = image.resize((224, 224))
         
-        # Convert to array and normalize
-        img_array = img_to_array(img)
-        img_array = img_array / 255.0  # Normalize to [0,1]
-        
-        # Add batch dimension
+        # Convert to array and preprocess
+        img_array = np.array(image)
+        img_array = img_array.astype('float32') / 255.0
         img_array = np.expand_dims(img_array, axis=0)
         
-        logger.info(f"Image preprocessed successfully: {image_path}")
         return img_array
-    
     except Exception as e:
         logger.error(f"Error preprocessing image: {str(e)}")
-        raise ValueError(f"Error preprocessing image: {str(e)}")
+        return None
 
-# Function to calculate BMI from height and weight
-def calculate_bmi(weight_kg, height_m):
-    """Calculate BMI using weight in kg and height in meters."""
-    return weight_kg / (height_m * height_m)
-
-# Main route for rendering the HTML form
-@app.route('/')
-def home():
-    return render_template('index.html')  # Ensure index.html is in the templates folder
-
-# Route to serve temporary images
-@app.route('/temp/<filename>')
-def send_temp_image(filename):
-    return send_from_directory(TEMP_DIR, filename)
-
-# Function to validate and scale height prediction
-def validate_height(height_m):
-    """
-    Validate and scale height prediction to ensure it's within realistic human ranges.
-    Average human height range: 1.4m to 2.1m (140cm to 210cm)
-    """
-    MIN_HEIGHT_M = 1.4  # 140 cm
-    MAX_HEIGHT_M = 2.1  # 210 cm
+def validate_height(height):
+    """Validate and adjust height predictions to realistic ranges"""
+    MIN_HEIGHT = 1.4  # 140cm
+    MAX_HEIGHT = 2.1  # 210cm
     
-    # Log the original prediction
-    logger.info(f"Original height prediction: {height_m}m")
+    logger.info(f"Original height prediction: {height}m")
     
     # If height is already in a realistic range, return as is
-    if MIN_HEIGHT_M <= height_m <= MAX_HEIGHT_M:
-        logger.info(f"Height {height_m}m is within realistic range, using as is")
-        return height_m
+    if MIN_HEIGHT <= height <= MAX_HEIGHT:
+        return height
     
-    # If height is in centimeters (e.g., 169), convert to meters
-    if 140 <= height_m <= 210:
-        converted = height_m / 100
-        logger.info(f"Converting from cm to m: {height_m}cm -> {converted}m")
-        return converted
+    # If height is in centimeters, convert to meters
+    if height > 10:  # Likely in centimeters
+        height = height / 100
+        logger.info(f"Converted from cm to m: {height}m")
     
-    # If height is too large (e.g., 5.69m), scale it down by factor of 3
-    if height_m > MAX_HEIGHT_M:
+    # If still too large, try scaling down
+    if height > MAX_HEIGHT:
         # Try different scaling factors
-        scale_factors = [
-            (3.3, "divide by 3.3"),  # For values around 5.6m -> 1.7m
-            (3.0, "divide by 3.0"),  # For values around 5.1m -> 1.7m
-            (10.0, "divide by 10"),  # For values like 17m -> 1.7m
-        ]
+        scaling_factors = [3.3, 3.0, 10.0]
+        for factor in scaling_factors:
+            scaled_height = height / factor
+            if MIN_HEIGHT <= scaled_height <= MAX_HEIGHT:
+                logger.info(f"Scaled height by factor {factor}: {scaled_height}m")
+                return scaled_height
         
-        for factor, method in scale_factors:
-            scaled = height_m / factor
-            if MIN_HEIGHT_M <= scaled <= MAX_HEIGHT_M:
-                logger.info(f"Scaling height using {method}: {height_m}m -> {scaled}m")
-                return scaled
+        # If all scaling attempts fail, return the closest valid height
+        logger.warning(f"Could not scale height to valid range, using closest valid height")
+        return min(max(height, MIN_HEIGHT), MAX_HEIGHT)
     
-    # If all attempts fail, use closest valid height
-    closest_valid = min(max(height_m / 3.3, MIN_HEIGHT_M), MAX_HEIGHT_M)
-    logger.warning(f"Using closest valid height: {closest_valid}m (original was {height_m}m)")
-    return closest_valid
+    return height
 
-# Prediction route
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/predict', methods=['POST'])
 def predict():
-    if not is_model_ready():
-        return jsonify({"error": "Model not initialized. Please check server logs."}), 503
-    
     try:
         if 'image' not in request.files:
-            return jsonify({"error": "No image file found"}), 400
-
-        image_file = request.files['image']
+            return jsonify({'success': False, 'error': 'No image file provided'})
         
-        if image_file.filename == '':
-            return jsonify({"error": "No selected file"}), 400
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No selected file'})
         
-        # Validate the uploaded image
-        validate_image(image_file)
+        # Read and preprocess the image
+        image_bytes = file.read()
+        processed_image = preprocess_image(image_bytes)
         
-        # Create a unique filename to avoid conflicts
-        filename = f"{os.path.splitext(image_file.filename)[0]}_{int(time.time())}{os.path.splitext(image_file.filename)[1]}"
-        image_path = os.path.join(TEMP_DIR, filename)
-        
-        # Save and preprocess the image
-        image_file.save(image_path)
-        img_array = preprocess_image(image_path)
+        if processed_image is None:
+            return jsonify({'success': False, 'error': 'Error processing image'})
         
         # Make prediction
-        prediction = model.predict(img_array)
+        predictions = model.predict(processed_image)
         
-        if prediction.shape[1] != 2:
-            raise ValueError("Model output shape is not as expected")
+        # Extract height and weight
+        predicted_height = float(predictions[0][0])
+        predicted_weight = float(predictions[0][1])
         
-        # Get raw predictions
-        raw_height_m, predicted_weight_kg = map(float, prediction[0])
+        # Validate height
+        validated_height = validate_height(predicted_height)
         
-        # Validate and scale height prediction
-        predicted_height_m = validate_height(raw_height_m)
+        # Calculate BMI
+        bmi = predicted_weight / (validated_height ** 2)
         
-        # Convert height to cm for display
-        predicted_height_cm = predicted_height_m * 100
+        # Determine BMI category
+        if bmi < 18.5:
+            category = "Underweight"
+        elif 18.5 <= bmi < 25:
+            category = "Normal weight"
+        elif 25 <= bmi < 30:
+            category = "Overweight"
+        else:
+            category = "Obese"
         
-        # Calculate BMI using validated height in meters
-        predicted_bmi = calculate_bmi(predicted_weight_kg, predicted_height_m)
-        
-        # Clean up old files in temp directory
-        cleanup_temp_files()
-        
-        # Prepare response with additional debug info
-        response = {
-            "success": True,
-            "predicted_height_cm": round(predicted_height_cm, 2),  # Display in cm
-            "predicted_height_m": round(predicted_height_m, 2),    # Also send meters
-            "predicted_weight_kg": round(predicted_weight_kg, 2),
-            "predicted_bmi": round(predicted_bmi, 2),
-            "bmi_category": get_bmi_category(predicted_bmi),
-            "image_url": f"/temp/{filename}",
-            "debug_info": {
-                "raw_height": round(raw_height_m, 3),
-                "scaled_height": round(predicted_height_m, 3),
-                "scaling_factor": round(predicted_height_m / raw_height_m, 3) if raw_height_m != 0 else 0
-            }
-        }
-        
-        return jsonify(response)
-        
-    except Exception as e:
-        logger.error(f"Prediction error: {str(e)}")
         return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-def cleanup_temp_files(max_age_hours=1):
-    """Clean up old temporary files."""
-    try:
-        current_time = time.time()
-        for filename in os.listdir(TEMP_DIR):
-            filepath = os.path.join(TEMP_DIR, filename)
-            if os.path.isfile(filepath):
-                file_age = current_time - os.path.getmtime(filepath)
-                if file_age > (max_age_hours * 3600):
-                    os.remove(filepath)
+            'success': True,
+            'predicted_height_m': round(validated_height, 2),
+            'predicted_height_cm': round(validated_height * 100, 1),
+            'predicted_weight_kg': round(predicted_weight, 1),
+            'predicted_bmi': round(bmi, 1),
+            'bmi_category': category,
+            'debug_info': {
+                'raw_height': round(predicted_height, 2),
+                'scaled_height': round(validated_height, 2),
+                'scaling_factor': round(predicted_height / validated_height, 2) if predicted_height != validated_height else 1.0
+            }
+        })
+        
     except Exception as e:
-        logger.warning(f"Error cleaning up temporary files: {str(e)}")
-
-def get_bmi_category(bmi):
-    """Return BMI category based on the calculated BMI value."""
-    if bmi < 18.5:
-        return "Underweight"
-    elif 18.5 <= bmi < 25:
-        return "Normal weight"
-    elif 25 <= bmi < 30:
-        return "Overweight"
-    else:
-        return "Obese"
+        logger.error(f"Error during prediction: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
