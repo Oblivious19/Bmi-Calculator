@@ -17,13 +17,33 @@ tf.config.set_visible_devices([], 'GPU')
 app = Flask(__name__)
 
 # Load the model
-try:
-    model_path = os.path.join(os.path.dirname(__file__), "custom_cnn_bmi_model_final.keras")
-    model = tf.keras.models.load_model(model_path)
-    logger.info(f"Model successfully loaded from: {model_path}")
-except Exception as e:
-    logger.error(f"Error loading model: {str(e)}")
-    model = None
+def load_model():
+    try:
+        # Try multiple possible paths for the model
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "custom_cnn_bmi_model_final.keras"),
+            os.path.join(os.path.dirname(__file__), "model", "custom_cnn_bmi_model_final.keras"),
+            "custom_cnn_bmi_model_final.keras"
+        ]
+        
+        model = None
+        for model_path in possible_paths:
+            if os.path.exists(model_path):
+                logger.info(f"Attempting to load model from: {model_path}")
+                model = tf.keras.models.load_model(model_path)
+                logger.info(f"Model successfully loaded from: {model_path}")
+                break
+        
+        if model is None:
+            raise FileNotFoundError("Model file not found in any of the expected locations")
+        
+        return model
+    except Exception as e:
+        logger.error(f"Error loading model: {str(e)}")
+        return None
+
+# Initialize model
+model = load_model()
 
 def preprocess_image(image_bytes):
     try:
@@ -86,6 +106,12 @@ def index():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+        if model is None:
+            return jsonify({
+                'success': False,
+                'error': 'Model not loaded. Please try again later.'
+            }), 500
+
         if 'image' not in request.files:
             return jsonify({'success': False, 'error': 'No image file provided'})
         
@@ -101,11 +127,11 @@ def predict():
             return jsonify({'success': False, 'error': 'Error processing image'})
         
         # Make prediction
-        predictions = model.predict(processed_image)
+        prediction = model.predict(processed_image)
         
         # Extract height and weight
-        predicted_height = float(predictions[0][0])
-        predicted_weight = float(predictions[0][1])
+        predicted_height = float(prediction[0][0])
+        predicted_weight = float(prediction[0][1])
         
         # Validate height
         validated_height = validate_height(predicted_height)
@@ -138,8 +164,11 @@ def predict():
         })
         
     except Exception as e:
-        logger.error(f"Error during prediction: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Prediction error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error during prediction: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

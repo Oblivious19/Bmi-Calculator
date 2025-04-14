@@ -2,7 +2,10 @@ services:
   - type: web
     name: bmi-calculator
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      mkdir -p model
+      cp custom_cnn_bmi_model_final.keras model/
+      pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
