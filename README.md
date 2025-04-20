@@ -51,7 +51,7 @@ Visit the live application at: [BMI Calculator](https://bmi-calculator.onrender.
 
 4. Download the model file:
 
-   Due to file size limitations, the model file is not included in the repository. You can download it from [Google Drive](your-google-drive-link-here) and place it in the root directory of the project with the name `custom_cnn_bmi_model_final.keras`.
+   Due to file size limitations, the model file is not included in the repository. You can download it from [Google Drive](https://drive.google.com/file/d/18Qv7ipbhfAer0XxfnBxPc2vUNedEbJhj/view?usp=sharing) and place it in the root directory of the project with the name `custom_cnn_bmi_model_final.keras`.
 
 5. Run the application:
 

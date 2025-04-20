@@ -6,15 +6,13 @@ services:
       # Create a model directory
       mkdir -p model
 
-      # Download the model file from a cloud storage service
-      # You'll need to upload your model to a service like Google Drive, Dropbox, etc.
-      # and replace the URL below with the direct download link
-      # For now, we'll use a placeholder URL
-      # curl -L "YOUR_MODEL_DOWNLOAD_URL" -o model/custom_cnn_bmi_model_final.keras
-
-      # For testing, we'll create a dummy model file
-      echo "Creating a dummy model file for testing..."
-      python -c "import tensorflow as tf; model = tf.keras.Sequential([tf.keras.layers.Dense(2, input_shape=(224, 224, 3))]); model.save('model/custom_cnn_bmi_model_final.keras')"
+      # Download the model file from Google Drive
+      echo "Downloading model file from Google Drive..."
+      # Extract the file ID from the Google Drive link
+      FILE_ID="18Qv7ipbhfAer0XxfnBxPc2vUNedEbJhj"
+      # Use gdown to download the file (more reliable than curl for Google Drive)
+      pip install gdown
+      gdown --id $FILE_ID -O model/custom_cnn_bmi_model_final.keras
 
       pip install -r requirements.txt
     startCommand: gunicorn app:app
