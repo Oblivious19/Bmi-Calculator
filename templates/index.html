@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI BMI Calculator</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary-color: #4361ee;
+        --secondary-color: #3f37c9;
+        --success-color: #4cc9f0;
+        --warning-color: #f72585;
+        --light-bg: #f8f9fa;
+        --dark-bg: #212529;
+        --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+        --transition-speed: 0.3s;
+        --gradient-start: #000000;
+        --gradient-mid: #1a1a1a;
+        --gradient-end: #2d2d2d;
+        --text-primary: #ffffff;
+        --text-secondary: rgba(255, 255, 255, 0.9);
+        --text-muted: rgba(255, 255, 255, 0.7);
+        --text-highlight: #4cc9f0;
+        --text-warning: #ff6b6b;
+        --text-success: #caffbf;
+      }
+
+      body {
+        background: linear-gradient(
+          135deg,
+          var(--gradient-start) 0%,
+          var(--gradient-mid) 50%,
+          var(--gradient-end) 100%
+        );
+        min-height: 100vh;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--text-primary);
+      }
+
+      .container {
+        max-width: 1200px;
+        padding: 2rem;
+      }
+
+      .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: var(--card-shadow);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        transition: transform var(--transition-speed) ease,
+          box-shadow var(--transition-speed) ease;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .card-header {
+        background: linear-gradient(
+          45deg,
+          var(--primary-color),
+          var(--secondary-color)
+        );
+        color: white;
+        border-bottom: none;
+        padding: 1.5rem;
+        font-weight: 600;
+      }
+
+      .upload-area {
+        border: 2px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 2.5rem;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+        transition: all var(--transition-speed) ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 250px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .upload-area:hover,
+      .upload-area.dragover {
+        border-color: var(--primary-color);
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(1.02);
+      }
+
+      .upload-icon {
+        color: var(--text-highlight);
+        margin-bottom: 1rem;
+        font-size: 3.5rem;
+        transition: transform var(--transition-speed) ease;
+      }
+
+      .upload-area:hover .upload-icon {
+        transform: scale(1.1);
+      }
+
+      .preview-image {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        transition: transform var(--transition-speed) ease;
+      }
+
+      .preview-image:hover {
+        transform: scale(1.02);
+      }
+
+      .result-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        padding: 2rem;
+        backdrop-filter: blur(10px);
+      }
+
+      .metric-box {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        transition: transform var(--transition-speed) ease,
+          box-shadow var(--transition-speed) ease;
+        border-left: 4px solid var(--primary-color);
+      }
+
+      .metric-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .metric-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-highlight);
+        transition: transform var(--transition-speed) ease;
+      }
+
+      .metric-box:hover .metric-icon {
+        transform: scale(1.1);
+      }
+
+      .bmi-gauge {
+        width: 200px;
+        height: 100px;
+        margin: 2rem auto;
+        position: relative;
+      }
+
+      .bmi-category {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        text-align: center;
+        transition: transform var(--transition-speed) ease;
+      }
+
+      .bmi-category:hover {
+        transform: scale(1.05);
+      }
+
+      .underweight {
+        background-color: rgba(255, 214, 165, 0.2);
+        color: #ffd6a5;
+      }
+      .normalweight {
+        background-color: rgba(202, 255, 191, 0.2);
+        color: var(--text-success);
+      }
+      .overweight {
+        background-color: rgba(255, 173, 173, 0.2);
+        color: #ffadad;
+      }
+      .obese {
+        background-color: rgba(255, 153, 153, 0.2);
+        color: #ff9999;
+      }
+
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+      }
+
+      .loading-spinner {
+        width: 100px;
+        height: 100px;
+        border: 8px solid rgba(255, 255, 255, 0.1);
+        border-top: 8px solid var(--text-highlight);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error-message {
+        background-color: rgba(255, 227, 227, 0.1);
+        color: var(--text-warning);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+        animation: shake 0.5s ease-in-out;
+        border: 1px solid rgba(255, 107, 107, 0.2);
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+          transform: translateX(-5px);
+        }
+        20%,
+        40%,
+        60%,
+        80% {
+          transform: translateX(5px);
+        }
+      }
+
+      .debug-info {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border-left: 3px solid var(--primary-color);
+      }
+
+      .btn-primary {
+        background: linear-gradient(
+          45deg,
+          var(--primary-color),
+          var(--secondary-color)
+        );
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all var(--transition-speed) ease;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+      }
+
+      .app-title {
+        background: linear-gradient(
+          45deg,
+          var(--text-highlight),
+          var(--primary-color)
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .app-subtitle {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+      }
+
+      .file-info {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+
+      .file-info i {
+        margin-right: 0.5rem;
+        color: var(--text-highlight);
+      }
+
+      .result-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-highlight);
+        margin: 0.5rem 0;
+      }
+
+      .result-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .bmi-value {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(
+          45deg,
+          var(--text-highlight),
+          var(--primary-color)
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin: 1rem 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .bmi-explanation {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+      }
+
+      .upload-progress {
+        width: 100%;
+        height: 5px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+        margin-top: 1rem;
+        overflow: hidden;
+        display: none;
+      }
+
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(
+          45deg,
+          var(--text-highlight),
+          var(--primary-color)
+        );
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      .tooltip-custom {
+        position: relative;
+        display: inline-block;
+      }
+
+      .tooltip-custom .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: rgba(0, 0, 0, 0.9);
+        color: var(--text-primary);
+        text-align: center;
+        border-radius: 6px;
+        padding: 10px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .tooltip-custom:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+
+      .tooltip-custom .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+      }
+
+      .text-muted {
+        color: var(--text-muted) !important;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+        }
+
+        .card {
+          margin-bottom: 1.5rem;
+        }
+
+        .result-value {
+          font-size: 1.5rem;
+        }
+
+        .bmi-value {
+          font-size: 2.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 text-center mb-4">
+          <h1 class="display-4 app-title">AI BMI Calculator</h1>
+          <p class="app-subtitle">
+            Upload a full-body photo to calculate your BMI using advanced AI
+          </p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header">
+              <i class="fas fa-upload me-2"></i> Upload Image
+            </div>
+            <div class="card-body">
+              <div class="upload-area" id="uploadArea">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <h4>Drag & Drop or Click to Upload</h4>
+                <p class="text-muted">Supported formats: JPG, JPEG, PNG</p>
+                <input
+                  type="file"
+                  id="imageInput"
+                  accept=".jpg,.jpeg,.png"
+                  class="d-none"
+                />
+                <div class="upload-progress" id="uploadProgress">
+                  <div class="progress-bar" id="progressBar"></div>
+                </div>
+              </div>
+              <div class="file-info" id="fileInfo" style="display: none">
+                <i class="fas fa-file-image"></i>
+                <span id="fileName">No file selected</span>
+                <span id="fileSize" class="ms-2"></span>
+              </div>
+              <div class="error-message mt-3" id="errorMessage"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header">
+              <i class="fas fa-chart-line me-2"></i> Results
+            </div>
+            <div class="card-body">
+              <div
+                id="previewContainer"
+                class="text-center mb-4"
+                style="display: none"
+              >
+                <img
+                  id="previewImage"
+                  class="preview-image"
+                  src=""
+                  alt="Preview"
+                />
+              </div>
+              <div
+                id="resultContainer"
+                class="result-card"
+                style="display: none"
+              >
+                <div class="row">
+                  <div class="col-6">
+                    <div class="metric-box">
+                      <i class="fas fa-ruler-vertical metric-icon"></i>
+                      <div class="result-label">Height</div>
+                      <div class="result-value">
+                        <span id="heightResult">-</span> cm
+                      </div>
+                      <div class="text-muted">
+                        (<span id="heightResultM">-</span> m)
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="metric-box">
+                      <i class="fas fa-weight metric-icon"></i>
+                      <div class="result-label">Weight</div>
+                      <div class="result-value">
+                        <span id="weightResult">-</span> kg
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-center mt-4">
+                  <div class="result-label">BMI Score</div>
+                  <div class="bmi-value">
+                    <span id="bmiResult">-</span>
+                  </div>
+                  <div id="bmiCategory" class="bmi-category"></div>
+                  <div id="bmiExplanation" class="bmi-explanation"></div>
+                </div>
+
+                <div class="debug-info" id="debugInfo" style="display: none">
+                  <h6>
+                    <i class="fas fa-info-circle me-2"></i>Debug Information
+                  </h6>
+                  <p class="mb-0">
+                    Raw Height: <span id="rawHeight">-</span>m<br />
+                    Scaled Height: <span id="scaledHeight">-</span>m<br />
+                    Scaling Factor: <span id="scalingFactor">-</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-spinner"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const uploadArea = document.getElementById("uploadArea");
+        const imageInput = document.getElementById("imageInput");
+        const previewContainer = document.getElementById("previewContainer");
+        const previewImage = document.getElementById("previewImage");
+        const resultContainer = document.getElementById("resultContainer");
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const errorMessage = document.getElementById("errorMessage");
+        const debugInfo = document.getElementById("debugInfo");
+        const fileInfo = document.getElementById("fileInfo");
+        const fileName = document.getElementById("fileName");
+        const fileSize = document.getElementById("fileSize");
+        const uploadProgress = document.getElementById("uploadProgress");
+        const progressBar = document.getElementById("progressBar");
+
+        function showLoading() {
+          loadingOverlay.style.display = "flex";
+        }
+
+        function hideLoading() {
+          loadingOverlay.style.display = "none";
+        }
+
+        function showError(message) {
+          errorMessage.textContent = message;
+          errorMessage.style.display = "block";
+          setTimeout(() => {
+            errorMessage.style.display = "none";
+          }, 5000);
+        }
+
+        function hideError() {
+          errorMessage.style.display = "none";
+        }
+
+        function formatFileSize(bytes) {
+          if (bytes === 0) return "0 Bytes";
+          const k = 1024;
+          const sizes = ["Bytes", "KB", "MB", "GB"];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return (
+            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+          );
+        }
+
+        function updateFileInfo(file) {
+          fileName.textContent = file.name;
+          fileSize.textContent = `(${formatFileSize(file.size)})`;
+          fileInfo.style.display = "block";
+        }
+
+        function updateProgress(percent) {
+          uploadProgress.style.display = "block";
+          progressBar.style.width = percent + "%";
+        }
+
+        function resetProgress() {
+          uploadProgress.style.display = "none";
+          progressBar.style.width = "0%";
+        }
+
+        // Fix for click to upload
+        uploadArea.addEventListener("click", function (e) {
+          // Prevent the click from propagating to the document
+          e.stopPropagation();
+          // Trigger the file input click
+          imageInput.click();
+        });
+
+        uploadArea.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          uploadArea.classList.add("dragover");
+        });
+
+        uploadArea.addEventListener("dragleave", (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove("dragover");
+        });
+
+        uploadArea.addEventListener("drop", (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove("dragover");
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            handleFile(files[0]);
+          }
+        });
+
+        imageInput.addEventListener("change", (e) => {
+          if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+          }
+        });
+
+        function handleFile(file) {
+          hideError();
+          resultContainer.style.display = "none";
+          resetProgress();
+
+          if (!file.type.match("image.*")) {
+            showError("Please upload an image file (JPG, JPEG, or PNG)");
+            return;
+          }
+
+          updateFileInfo(file);
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            previewImage.src = e.target.result;
+            previewContainer.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+
+          uploadAndProcess(file);
+        }
+
+        function uploadAndProcess(file) {
+          const formData = new FormData();
+          formData.append("image", file);
+
+          showLoading();
+          updateProgress(30);
+
+          // Simulate progress
+          const progressInterval = setInterval(() => {
+            const currentWidth = parseInt(progressBar.style.width);
+            if (currentWidth < 90) {
+              updateProgress(currentWidth + 10);
+            }
+          }, 300);
+
+          fetch("/predict", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              clearInterval(progressInterval);
+              updateProgress(100);
+              setTimeout(() => {
+                hideLoading();
+                resetProgress();
+              }, 500);
+
+              if (data.success) {
+                document.getElementById("heightResult").textContent =
+                  data.predicted_height_cm;
+                document.getElementById("heightResultM").textContent =
+                  data.predicted_height_m;
+                document.getElementById("weightResult").textContent =
+                  data.predicted_weight_kg;
+                document.getElementById("bmiResult").textContent =
+                  data.predicted_bmi;
+
+                const bmiCategory = document.getElementById("bmiCategory");
+                const bmiExplanation =
+                  document.getElementById("bmiExplanation");
+                bmiCategory.textContent = data.bmi_category;
+                bmiCategory.className =
+                  "bmi-category " +
+                  data.bmi_category.toLowerCase().replace(" ", "");
+
+                // Add BMI explanation
+                let explanation = "";
+                if (data.bmi_category === "Underweight") {
+                  explanation =
+                    "Your BMI indicates you are underweight. Consider consulting a healthcare provider about healthy ways to gain weight.";
+                } else if (data.bmi_category === "Normal weight") {
+                  explanation =
+                    "Your BMI is within the healthy range. Keep maintaining a balanced diet and regular exercise.";
+                } else if (data.bmi_category === "Overweight") {
+                  explanation =
+                    "Your BMI indicates you are overweight. Focus on a balanced diet and increased physical activity.";
+                } else {
+                  explanation =
+                    "Your BMI indicates obesity. It's recommended to consult a healthcare provider for personalized advice.";
+                }
+                bmiExplanation.textContent = explanation;
+
+                // Update debug info
+                document.getElementById("rawHeight").textContent =
+                  data.debug_info.raw_height;
+                document.getElementById("scaledHeight").textContent =
+                  data.debug_info.scaled_height;
+                document.getElementById("scalingFactor").textContent =
+                  data.debug_info.scaling_factor;
+                debugInfo.style.display = "block";
+
+                resultContainer.style.display = "block";
+              } else {
+                showError(data.error || "An error occurred during processing");
+              }
+            })
+            .catch((error) => {
+              clearInterval(progressInterval);
+              hideLoading();
+              resetProgress();
+              showError("An error occurred while processing the image");
+            });
+        }
+      });
+    </script>
+  </body>
+</html>

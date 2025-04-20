@@ -1,0 +1,3 @@
+Predicted Height: 4.81 cm
+Predicted Weight: 72.65 kg
+Predicted BMI: 31343.66
