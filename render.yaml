@@ -14,6 +14,9 @@ services:
       pip install gdown
       gdown --id $FILE_ID -O model/custom_cnn_bmi_model_final.keras
 
+      # Also copy the model to the root directory for compatibility
+      cp model/custom_cnn_bmi_model_final.keras custom_cnn_bmi_model_final.keras
+
       pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:

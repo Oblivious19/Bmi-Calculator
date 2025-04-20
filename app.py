@@ -21,6 +21,7 @@ def load_model():
     try:
         # Try multiple possible paths for the model
         possible_paths = [
+            "C:/Users/shrey/OneDrive/Desktop/Working Projects/BMI/BMI_Output/custom_cnn_bmi_model_final.keras",
             os.path.join(os.path.dirname(__file__), "model", "custom_cnn_bmi_model_final.keras"),
             os.path.join(os.path.dirname(__file__), "custom_cnn_bmi_model_final.keras"),
             "model/custom_cnn_bmi_model_final.keras",
@@ -44,7 +45,7 @@ def load_model():
             logger.info("Dummy model created successfully.")
         
         return model
-except Exception as e:
+    except Exception as e:
         logger.error(f"Error loading model: {str(e)}")
         return None
 
