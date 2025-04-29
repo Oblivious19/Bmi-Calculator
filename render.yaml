@@ -7,6 +7,7 @@ services:
       mkdir -p model uploads
 
       # Install required packages
+      pip install --upgrade pip
       pip install -r requirements.txt
       pip install gdown
 
@@ -18,17 +19,31 @@ services:
         exit 1
       }
 
-      # Verify model file exists
+      # Verify model file exists and has content
       if [ ! -f "model/custom_cnn_bmi_model_final.keras" ]; then
         echo "Model file not found after download"
         exit 1
       fi
 
+      MODEL_SIZE=$(stat -c%s "model/custom_cnn_bmi_model_final.keras")
+      if [ "$MODEL_SIZE" -lt 1000000 ]; then
+        echo "Model file appears to be too small ($MODEL_SIZE bytes)"
+        exit 1
+      fi
+
       # Copy model to root directory for compatibility
       cp model/custom_cnn_bmi_model_final.keras custom_cnn_bmi_model_final.keras
-    startCommand: gunicorn app:app
+
+      # Verify the copy was successful
+      if [ ! -f "custom_cnn_bmi_model_final.keras" ]; then
+        echo "Failed to copy model file to root directory"
+        exit 1
+      fi
+    startCommand: gunicorn app:app --timeout 120 --workers 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: PORT
         value: 10000
+      - key: FLASK_ENV
+        value: production

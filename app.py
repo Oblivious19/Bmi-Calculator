@@ -145,7 +145,8 @@ def model_status():
         if model is None:
             return jsonify({
                 'status': 'error',
-                'message': 'Model is not loaded'
+                'message': 'Model is not loaded',
+                'details': 'The model failed to load during application startup'
             }), 500
         
         # Get model information
@@ -153,12 +154,12 @@ def model_status():
             'status': 'loaded',
             'input_shape': str(model.input_shape),
             'output_shape': str(model.output_shape),
-            'model_path': 'Unknown'  # We don't track which path was used
+            'model_path': 'Unknown',
+            'model_type': str(type(model))
         }
         
         # Try to get the model path
         for path in [
-            "C:/Users/shrey/OneDrive/Desktop/Working Projects/BMI/BMI_Output/custom_cnn_bmi_model_final.keras",
             os.path.join(os.path.dirname(__file__), "model", "custom_cnn_bmi_model_final.keras"),
             os.path.join(os.path.dirname(__file__), "custom_cnn_bmi_model_final.keras"),
             "model/custom_cnn_bmi_model_final.keras",
@@ -166,6 +167,7 @@ def model_status():
         ]:
             if os.path.exists(path):
                 model_info['model_path'] = path
+                model_info['file_size'] = os.path.getsize(path)
                 break
         
         return jsonify(model_info)
@@ -175,7 +177,8 @@ def model_status():
         logger.error(traceback.format_exc())
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 @app.route('/predict', methods=['POST'])
@@ -185,45 +188,62 @@ def predict():
             logger.error("Model is None, cannot make predictions")
             return jsonify({
                 'success': False,
-                'error': 'Model not loaded. Please try again later.'
+                'error': 'Model not loaded. Please try again later.',
+                'details': 'The model failed to load during application startup'
             }), 500
 
         if 'image' not in request.files:
             logger.error("No image file in request.files")
-            return jsonify({'success': False, 'error': 'No image file provided'})
-        
+            return jsonify({
+                'success': False,
+                'error': 'No image file provided',
+                'details': 'Please upload an image file'
+            })
+
         file = request.files['image']
         if file.filename == '':
             logger.error("Empty filename in uploaded file")
-            return jsonify({'success': False, 'error': 'No selected file'})
-        
+            return jsonify({
+                'success': False,
+                'error': 'No selected file',
+                'details': 'Please select a valid image file'
+            })
+
         logger.info(f"Processing image file: {file.filename}, content type: {file.content_type}")
-        
+
         # Read and preprocess the image
         try:
             image_bytes = file.read()
             logger.info(f"Read {len(image_bytes)} bytes from uploaded file")
-            
+
             if len(image_bytes) == 0:
                 logger.error("Received empty image file")
-                return jsonify({'success': False, 'error': 'Received empty image file'})
-            
+                return jsonify({
+                    'success': False,
+                    'error': 'Received empty image file',
+                    'details': 'The uploaded file appears to be empty'
+                })
+
             processed_image = preprocess_image(image_bytes)
-            
+
             if processed_image is None:
                 logger.error("Image preprocessing failed")
-                return jsonify({'success': False, 'error': 'Error processing image. Please try a different image.'})
-            
+                return jsonify({
+                    'success': False,
+                    'error': 'Error processing image',
+                    'details': 'Failed to preprocess the image. Please try a different image.'
+                })
+
             # Make prediction
             logger.info("Making prediction with model")
             prediction = model.predict(processed_image)
             logger.info(f"Prediction result: {prediction}")
-            
+
             # Extract height and weight
             predicted_height = float(prediction[0][0])
             predicted_weight = float(prediction[0][1])
             logger.info(f"Extracted height: {predicted_height}, weight: {predicted_weight}")
-            
+
             # Validate height
             validated_height = validate_height(predicted_height)
             logger.info(f"Validated height: {validated_height}")
@@ -231,7 +251,7 @@ def predict():
             # Calculate BMI
             bmi = predicted_weight / (validated_height ** 2)
             logger.info(f"Calculated BMI: {bmi}")
-            
+
             # Determine BMI category
             if bmi < 18.5:
                 category = "Underweight"
@@ -241,9 +261,9 @@ def predict():
                 category = "Overweight"
             else:
                 category = "Obese"
-            
+
             logger.info(f"BMI category: {category}")
-            
+
             return jsonify({
                 'success': True,
                 'predicted_height_m': round(validated_height, 2),
@@ -264,16 +284,18 @@ def predict():
             logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
-                'error': f'Error during prediction: {str(e)}'
+                'error': f'Error during prediction: {str(e)}',
+                'details': traceback.format_exc()
             }), 500
 
     except Exception as e:
-        logger.error(f"Prediction error: {str(e)}")
+        logger.error(f"Request processing error: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
-            'error': f'Error during prediction: {str(e)}'
+            'error': f'Error processing request: {str(e)}',
+            'details': traceback.format_exc()
         }), 500
 
 if __name__ == '__main__':
