@@ -3,21 +3,29 @@ services:
     name: bmi-calculator
     env: python
     buildCommand: |
-      # Create a model directory
-      mkdir -p model
+      # Create necessary directories
+      mkdir -p model uploads
+
+      # Install required packages
+      pip install -r requirements.txt
+      pip install gdown
 
       # Download the model file from Google Drive
       echo "Downloading model file from Google Drive..."
-      # Extract the file ID from the Google Drive link
       FILE_ID="18Qv7ipbhfAer0XxfnBxPc2vUNedEbJhj"
-      # Use gdown to download the file (more reliable than curl for Google Drive)
-      pip install gdown
-      gdown --id $FILE_ID -O model/custom_cnn_bmi_model_final.keras
+      gdown --id $FILE_ID -O model/custom_cnn_bmi_model_final.keras || {
+        echo "Failed to download model file"
+        exit 1
+      }
 
-      # Also copy the model to the root directory for compatibility
+      # Verify model file exists
+      if [ ! -f "model/custom_cnn_bmi_model_final.keras" ]; then
+        echo "Model file not found after download"
+        exit 1
+      fi
+
+      # Copy model to root directory for compatibility
       cp model/custom_cnn_bmi_model_final.keras custom_cnn_bmi_model_final.keras
-
-      pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION

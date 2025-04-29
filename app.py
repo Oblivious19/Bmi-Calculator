@@ -31,35 +31,35 @@ def load_model():
         for model_path in possible_paths:
             if os.path.exists(model_path):
                 logger.info(f"Attempting to load model from: {model_path}")
-                model = tf.keras.models.load_model(model_path)
-                logger.info(f"Model successfully loaded from: {model_path}")
-                
-                # Validate model input shape
-                input_shape = model.input_shape
-                logger.info(f"Model input shape: {input_shape}")
-                
-                # Check if the model has the expected input shape
-                expected_shape = (None, 224, 224, 3)
-                if input_shape[1:] != expected_shape[1:]:
-                    logger.warning(f"Model input shape {input_shape} does not match expected shape {expected_shape}")
-                    logger.warning("This might cause issues with image processing")
-                
-                break
+                try:
+                    model = tf.keras.models.load_model(model_path)
+                    logger.info(f"Model successfully loaded from: {model_path}")
+                    
+                    # Validate model input shape
+                    input_shape = model.input_shape
+                    logger.info(f"Model input shape: {input_shape}")
+                    
+                    # Check if the model has the expected input shape
+                    expected_shape = (None, 224, 224, 3)
+                    if input_shape[1:] != expected_shape[1:]:
+                        logger.warning(f"Model input shape {input_shape} does not match expected shape {expected_shape}")
+                        logger.warning("This might cause issues with image processing")
+                    
+                    return model
+                except Exception as e:
+                    logger.error(f"Error loading model from {model_path}: {str(e)}")
+                    continue
         
-        if model is None:
-            # If no model is found, create a dummy model for testing
-            logger.warning("No model file found. Creating a dummy model for testing.")
-            model = tf.keras.Sequential([
-                tf.keras.layers.Dense(2, input_shape=(224, 224, 3))
-            ])
-            logger.info("Dummy model created successfully.")
+        # If no model is found, raise an exception
+        error_msg = "No valid model file found. Please check the deployment logs."
+        logger.error(error_msg)
+        raise Exception(error_msg)
         
-        return model
     except Exception as e:
         logger.error(f"Error loading model: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        return None
+        raise
 
 # Initialize model
 model = load_model()
