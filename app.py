@@ -21,7 +21,6 @@ def load_model():
     try:
         # Try multiple possible paths for the model
         possible_paths = [
-            "C:/Users/shrey/OneDrive/Desktop/Working Projects/BMI/BMI_Output/custom_cnn_bmi_model_final.keras",
             os.path.join(os.path.dirname(__file__), "model", "custom_cnn_bmi_model_final.keras"),
             os.path.join(os.path.dirname(__file__), "custom_cnn_bmi_model_final.keras"),
             "model/custom_cnn_bmi_model_final.keras",
@@ -201,58 +200,72 @@ def predict():
         logger.info(f"Processing image file: {file.filename}, content type: {file.content_type}")
         
         # Read and preprocess the image
-        image_bytes = file.read()
-        logger.info(f"Read {len(image_bytes)} bytes from uploaded file")
-        
-        processed_image = preprocess_image(image_bytes)
-        
-        if processed_image is None:
-            logger.error("Image preprocessing failed")
-            return jsonify({'success': False, 'error': 'Error processing image. Please try a different image.'})
-        
-        # Make prediction
-        logger.info("Making prediction with model")
-        prediction = model.predict(processed_image)
-        logger.info(f"Prediction result: {prediction}")
-        
-        # Extract height and weight
-        predicted_height = float(prediction[0][0])
-        predicted_weight = float(prediction[0][1])
-        logger.info(f"Extracted height: {predicted_height}, weight: {predicted_weight}")
-        
-        # Validate height
-        validated_height = validate_height(predicted_height)
-        logger.info(f"Validated height: {validated_height}")
+        try:
+            image_bytes = file.read()
+            logger.info(f"Read {len(image_bytes)} bytes from uploaded file")
+            
+            if len(image_bytes) == 0:
+                logger.error("Received empty image file")
+                return jsonify({'success': False, 'error': 'Received empty image file'})
+            
+            processed_image = preprocess_image(image_bytes)
+            
+            if processed_image is None:
+                logger.error("Image preprocessing failed")
+                return jsonify({'success': False, 'error': 'Error processing image. Please try a different image.'})
+            
+            # Make prediction
+            logger.info("Making prediction with model")
+            prediction = model.predict(processed_image)
+            logger.info(f"Prediction result: {prediction}")
+            
+            # Extract height and weight
+            predicted_height = float(prediction[0][0])
+            predicted_weight = float(prediction[0][1])
+            logger.info(f"Extracted height: {predicted_height}, weight: {predicted_weight}")
+            
+            # Validate height
+            validated_height = validate_height(predicted_height)
+            logger.info(f"Validated height: {validated_height}")
 
-        # Calculate BMI
-        bmi = predicted_weight / (validated_height ** 2)
-        logger.info(f"Calculated BMI: {bmi}")
-        
-        # Determine BMI category
-        if bmi < 18.5:
-            category = "Underweight"
-        elif 18.5 <= bmi < 25:
-            category = "Normal weight"
-        elif 25 <= bmi < 30:
-            category = "Overweight"
-        else:
-            category = "Obese"
-        
-        logger.info(f"BMI category: {category}")
-        
-        return jsonify({
-            'success': True,
-            'predicted_height_m': round(validated_height, 2),
-            'predicted_height_cm': round(validated_height * 100, 1),
-            'predicted_weight_kg': round(predicted_weight, 1),
-            'predicted_bmi': round(bmi, 1),
-            'bmi_category': category,
-            'debug_info': {
-                'raw_height': round(predicted_height, 2),
-                'scaled_height': round(validated_height, 2),
-                'scaling_factor': round(predicted_height / validated_height, 2) if predicted_height != validated_height else 1.0
-            }
-        })
+            # Calculate BMI
+            bmi = predicted_weight / (validated_height ** 2)
+            logger.info(f"Calculated BMI: {bmi}")
+            
+            # Determine BMI category
+            if bmi < 18.5:
+                category = "Underweight"
+            elif 18.5 <= bmi < 25:
+                category = "Normal weight"
+            elif 25 <= bmi < 30:
+                category = "Overweight"
+            else:
+                category = "Obese"
+            
+            logger.info(f"BMI category: {category}")
+            
+            return jsonify({
+                'success': True,
+                'predicted_height_m': round(validated_height, 2),
+                'predicted_height_cm': round(validated_height * 100, 1),
+                'predicted_weight_kg': round(predicted_weight, 1),
+                'predicted_bmi': round(bmi, 1),
+                'bmi_category': category,
+                'debug_info': {
+                    'raw_height': round(predicted_height, 2),
+                    'scaled_height': round(validated_height, 2),
+                    'scaling_factor': round(predicted_height / validated_height, 2) if predicted_height != validated_height else 1.0
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Prediction error: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({
+                'success': False,
+                'error': f'Error during prediction: {str(e)}'
+            }), 500
 
     except Exception as e:
         logger.error(f"Prediction error: {str(e)}")

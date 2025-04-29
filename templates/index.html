@@ -677,7 +677,28 @@
           };
           reader.readAsDataURL(file);
 
-          uploadAndProcess(file);
+          // Check model status before uploading
+          checkModelStatus()
+            .then((status) => {
+              if (status.status === "loaded") {
+                uploadAndProcess(file);
+              } else {
+                showError("Model is not loaded. Please try again later.");
+              }
+            })
+            .catch((error) => {
+              console.error("Error checking model status:", error);
+              showError("Error checking model status. Please try again later.");
+            });
+        }
+
+        function checkModelStatus() {
+          return fetch("/model-status")
+            .then((response) => response.json())
+            .catch((error) => {
+              console.error("Error fetching model status:", error);
+              throw error;
+            });
         }
 
         function uploadAndProcess(file) {
@@ -761,7 +782,10 @@
               clearInterval(progressInterval);
               hideLoading();
               resetProgress();
-              showError("An error occurred while processing the image");
+              console.error("Error details:", error);
+              showError(
+                "An error occurred while processing the image. Please try a different image or check the console for details."
+              );
             });
         }
       });
